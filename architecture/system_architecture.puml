@@ -1,0 +1,72 @@
+@startuml
+' System Architecture for Aircraft Detection Project
+' Component diagram + Sequence diagram
+
+skinparam componentStyle rect
+
+package "User & UI" {
+  [Browser] <<Client>>
+}
+
+package "Frontend" {
+  [React App]\n`frontend/src` <<SPA>>
+  [Dev Server]\n`npm start` <<Tool>>
+}
+
+package "Backend" {
+  [Flask API]\n`backend/app.py` <<API>>
+  [YOLO Detector] <<MLModel>>
+  [Classifier (CNN+ViT / ResNet)] <<MLModel>>
+  [Model Files] <<Storage>>
+  [Annotated Image Generator] <<Service>>
+}
+
+package "Infrastructure" {
+  [Local FS / Models Dir] <<Storage>>
+  [Optional: Docker / VM] <<Infra>>
+}
+
+Browser --> "React App": HTTP (upload image / show results)
+"React App" --> "Flask API": POST /predict (multipart/form-data)
+"Flask API" --> YOLO Detector: run detection
+YOLO Detector --> "Flask API": detections (bboxes)
+"Flask API" --> Classifier: crop & classify
+Classifier --> "Flask API": class labels + confidences
+"Flask API" --> "Annotated Image Generator": draw boxes & labels
+"Annotated Image Generator" --> "Flask API": base64 image
+"Flask API" --> "React App": JSON response {count, detections[], annotated_image}
+
+' Component notes
+note right of YOLO Detector
+  ultralytics YOLO model (.pt / .onnx)
+  Runs on CPU/GPU depending on availability
+end note
+
+note right of Classifier
+  CNN+ViT or ResNet classifier
+  loads checkpoint (.pth)
+end note
+
+note bottom of Model Files
+  - best.pt / last.pt (YOLO weights)
+  - model_specific.pth (classifier)
+  - specific_class_index.json
+end note
+
+' Sequence diagram for request flow
+
+== Sequence: Detect Image ==
+actor User
+User -> Browser : Select image + Click detect
+Browser -> React App : Form POST (image)
+React App -> Flask API : POST /predict
+Flask API -> YOLO Detector : detect(image)
+YOLO Detector -> Flask API : boxes
+Flask API -> Classifier : classify(crops)
+Classifier -> Flask API : labels+probs
+Flask API -> Annotated Image Generator : draw(detections)
+Annotated Image Generator -> Flask API : base64_image
+Flask API -> React App : JSON result
+React App -> Browser : Render annotated image + table
+
+@enduml
