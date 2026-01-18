@@ -1,0 +1,539 @@
+% This is a Springer Nature LaTeX template
+\documentclass[sn-mathphys-num]{sn-jnl}
+
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amsthm}
+\usepackage{mathrsfs}
+\usepackage[title]{appendix}
+\usepackage{xcolor}
+\usepackage{textcomp}
+\usepackage{manyfoot}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\usepackage{listings}
+
+\jyear{2025}
+
+\theoremstyle{thmstyleone}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+
+\theoremstyle{thmstyletwo}
+\newtheorem{example}{Example}
+\newtheorem{remark}{Remark}
+
+\theoremstyle{thmstylethree}
+\newtheorem{definition}{Definition}
+
+\raggedbottom
+
+\begin{document}
+
+\title[Military Aircraft Detection and Classification]{Military Aircraft Detection and Classification from Satellite Images Using YOLOv8 and CNN--Vision Transformer Hybrid Model}
+
+\author[1]{\fnm{Sravya} \sur{Matta}}
+
+\author[2]{\fnm{K. Prabhath} \sur{Reddy}}
+
+\author[3]{\fnm{Sai Keerthana} \sur{K}}
+
+\author*[4]{\fnm{Priyanka} \sur{H}}
+
+\affil[1]{\orgdiv{Department of Computer Science and Engineering}, \orgname{PES University}, \orgaddress{\city{Bengaluru}, \country{India}}.
+\email{mattasravya444@gmail.com}}
+
+\affil[2]{\orgdiv{Department of Computer Science and Engineering}, \orgname{PES University}, \orgaddress{\city{Bengaluru}, \country{India}}.
+\email{prabhathbdl@gmail.com}}
+
+\affil[3]{\orgdiv{Department of Computer Science and Engineering}, \orgname{PES University}, \orgaddress{\city{Bengaluru}, \country{India}}.
+\email{saikeerthanakalimisetty@gmail.com}}
+
+\affil*[4]{\orgdiv{Department of Computer Science and Engineering}, \orgname{PES University}, \orgaddress{\city{Bengaluru}, \country{India}}.
+\email{drpriyankahsachin@gmail.com}}
+
+\abstract{Satellite imaging and remote sensing technology have advanced rapidly, providing access to high-resolution aerial imagery useful in defense surveillance, disaster response, and aviation monitoring. However, manually identifying and classifying military aircraft from large-scale satellite data is slow, labor-intensive, and error-prone. This paper presents an automated deep learning-based system for detecting, recognizing, and counting military aircraft in satellite images. The system employs a two-stage cascade architecture combining YOLOv8n for object detection with a pretrained ResNet-50 or Vision Transformer (ViT-B/16) classifier for fine-grained aircraft recognition. YOLOv8n localizes aircraft with high accuracy, while the classifier distinguishes between 20 military aircraft categories. The model is trained and evaluated on the MAR20 dataset. A Flask-based web interface with ReactJS frontend enables users to upload images and visualize detection results. Experimental results demonstrate 92.3\% mAP for detection and 90.5\% classification accuracy, making it suitable for automated defense and surveillance applications.}
+
+\keywords{YOLOv8 \and Vision Transformer \and ResNet-50 \and CNN \and Remote sensing \and Satellite imagery \and Aircraft detection \and Deep learning \and Transfer learning}
+
+\maketitle
+
+\section{Introduction}\label{sec1}
+
+Satellite and aerial imagery play an important role in modern defense, surveillance, and strategic monitoring. High-resolution images captured by satellites and unmanned aerial vehicles (UAVs) can reveal the presence, type, and distribution of military assets, including aircraft stationed at airbases or deployed in the field. However, manually inspecting these images to identify and classify aircraft is time-consuming and difficult to scale when dealing with large regions or continuous monitoring requirements.
+
+Traditional image processing techniques are often sensitive to variations in lighting, resolution, viewing angle, and background clutter. These limitations reduce their reliability in real-world remote sensing environments. As the demand for near real-time situational awareness increases, there is a growing need for automated methods that can detect and classify military aircraft accurately and efficiently.
+
+Recent advances in deep learning have led to significant progress in object detection and image classification. One-stage detectors such as YOLO~\cite{yolov4} and SSD~\cite{liu2016ssd} can localize objects quickly, while Convolutional Neural Networks (CNNs) such as ResNet~\cite{he2016resnet} and Vision Transformers (ViTs)~\cite{dosovitskiy2020vit} have improved performance on fine-grained recognition tasks. Building on these developments, this work proposes an integrated two-stage cascade system that combines YOLOv8n for aircraft detection and a pretrained ResNet-50 or ViT-B/16 model for aircraft type classification.
+
+The main contributions of this paper are:
+\begin{itemize}
+    \item A two-stage cascade pipeline for detecting, classifying, and counting military aircraft in satellite images using YOLOv8n and ResNet-50/ViT-B/16.
+    \item A crop-based training approach that extracts aircraft regions from YOLO-format annotations to train the classifier.
+    \item Transfer learning from ImageNet~\cite{deng2009imagenet}-pretrained models with custom classification heads for fine-grained aircraft recognition across 20 categories.
+    \item A practical web-based interface using Flask backend and ReactJS frontend for uploading satellite images and visualizing annotated detection results with fleet composition analysis.
+\end{itemize}
+
+The remainder of this paper is organized as follows: Sect.~\ref{sec2} reviews related work in aircraft detection and remote sensing. Sect.~\ref{sec3} describes the proposed methodology and model architecture. Sect.~\ref{sec4} presents implementation details. Sect.~\ref{sec5} discusses experimental results, and Sect.~\ref{sec6} concludes the paper.
+
+\section{Related Work}\label{sec2}
+
+The intersection of deep learning and aerial image analysis has experienced remarkable progress in recent years. Numerous scholars have dedicated efforts toward developing robust methods for aircraft identification from satellite perspectives, with applications spanning military intelligence and air traffic surveillance.
+
+Yu \textit{et al.}~\cite{yu2023mar20} contributed the MAR20 dataset, a comprehensive collection featuring more than 22,000 labeled aircraft instances distributed across 20 military aircraft types. Their benchmark provides both axis-aligned and rotated bounding box annotations, enabling systematic evaluation of various detection architectures such as Faster R-CNN~\cite{ren2015faster}, RetinaNet~\cite{lin2017focal}, ATSS, FCOS, and RoI Transformer under challenging conditions including occlusion, atmospheric disturbance, and illumination changes.
+
+Addressing the challenge of arbitrary aircraft orientations, Cheng \textit{et al.}~\cite{cheng2016rotation} proposed a rotation-invariant detection approach combined with object tracking capabilities for drone-captured video sequences. Their method maintained detection stability across consecutive video frames. In a related effort, Ji \textit{et al.}~\cite{ji2019multiangle} developed an ensemble-based solution utilizing multiple convolutional neural networks with majority voting to recognize aircraft regardless of their viewing angle.
+
+The need for faster processing drove Wang \textit{et al.}~\cite{wang2022lightweight} to investigate streamlined versions of YOLOv5, achieving a practical compromise between inference speed and detection quality suitable for resource-constrained deployments. Wu \textit{et al.}~\cite{wu2020cgcnet} presented CGC-NET, a hybrid approach combining deep features with handcrafted characteristics to minimize false positives and accurately locate aircraft centers within visually complex scenes.
+
+Multi-resolution feature learning was explored by Hu \textit{et al.}~\cite{hu2021glfnet} in their GLF-Net architecture, which integrates global semantic understanding with fine-grained local texture analysis. Their research demonstrated that capturing information at multiple scales is essential for discriminating between aircraft with similar structural profiles.
+
+Recent developments have focused on enhancing detection of small-scale targets in satellite imagery. Zhu \textit{et al.}~\cite{zhu2021tph} introduced TPH-YOLOv5, incorporating transformer prediction heads to improve localization of diminutive objects in drone-captured scenes. Their approach demonstrated that attention-based prediction mechanisms significantly boost detection accuracy for targets occupying limited pixel areas. Building upon this direction, Li \textit{et al.}~\cite{li2022attention} systematically investigated attention module integration within YOLO architectures, revealing that spatial and channel attention mechanisms enhance feature discrimination for aerial object recognition tasks.
+
+Data augmentation strategies have proven crucial for training robust aircraft detectors. Shorten and Khoshgoftaar~\cite{shorten2019survey} provided an extensive survey of image augmentation techniques for deep learning, demonstrating that geometric transformations, color space manipulations, and mixing-based augmentations substantially improve model generalization, particularly when training data is limited or exhibits class imbalance.
+
+The emergence of hybrid CNN-Transformer architectures has opened new avenues for aerial image analysis. Liu \textit{et al.}~\cite{liu2021swin} proposed the Swin Transformer, featuring hierarchical feature maps and shifted window attention that enables efficient modeling of multi-scale objects. This architecture has been successfully adapted for remote sensing applications, offering strong performance on tasks requiring both local detail preservation and global context understanding. Furthermore, Lv \textit{et al.}~\cite{lv2023rtdetr} introduced RT-DETR, a real-time detection transformer that eliminates post-processing requirements through end-to-end object detection, achieving competitive speed-accuracy trade-offs compared to conventional YOLO variants.
+
+The YOLO detection framework~\cite{yolov4} has progressively evolved, culminating in YOLOv8~\cite{ultralytics2024} which incorporates advanced feature pyramid structures through updated backbone components optimized for small object detection. Simultaneously, Vision Transformer architectures~\cite{dosovitskiy2020vit} have gained prominence by utilizing self-attention to capture relationships between image patches, while deep residual networks~\cite{he2016resnet} remain popular choices due to their effective gradient propagation through skip connections.
+
+\subsection{Identified Limitations in Current Approaches}\label{subsec21}
+
+Analysis of prior research uncovers several gaps that merit attention:
+
+\begin{enumerate}
+    \item \textbf{Tightly coupled architectures:} Many existing frameworks~\cite{cheng2016rotation, wang2022lightweight} integrate detection and classification into single end-to-end pipelines. This monolithic design limits the ability to independently optimize each stage, especially when fine distinctions between visually similar aircraft are required.
+    
+    \item \textbf{Limited backbone diversity:} Previous studies~\cite{ji2019multiangle, wu2020cgcnet} have predominantly relied on convolutional feature extractors, largely ignoring transformer-based models that excel at capturing global spatial relationships—particularly important when aircraft share similar local appearance but differ in overall shape.
+    
+    \item \textbf{Single-level classification:} Existing methods~\cite{hu2021glfnet, yu2023mar20} focus exclusively on identifying specific aircraft models without providing broader operational categorizations (such as reconnaissance, attack, or transport roles). Such hierarchical classification would benefit strategic threat assessment and force composition analysis.
+    
+    \item \textbf{Deployment considerations overlooked:} Most academic research concludes with performance metrics and lacks user-friendly interfaces for practical deployment. This gap between laboratory prototypes and operational tools limits real-world adoption by defense and intelligence organizations.
+    
+    \item \textbf{Inconsistent evaluation standards:} Different studies employ varying datasets and evaluation protocols, many using private or restricted image collections. This inconsistency makes fair comparison between methods difficult and hinders reproducibility efforts.
+\end{enumerate}
+
+\subsection{Research Objectives}\label{subsec22}
+
+To address the identified gaps, this work establishes the following goals:
+
+\begin{enumerate}
+    \item \textbf{Decoupled detection-classification pipeline:} Separate aircraft localization from type identification into distinct stages, allowing each module to be optimized independently for improved fine-grained recognition performance.
+    
+    \item \textbf{Comparative classifier analysis:} Implement and evaluate both ResNet-50 (convolutional) and ViT-B/16 (transformer) classifiers to compare texture-focused versus attention-based feature learning approaches.
+    
+    \item \textbf{Hierarchical output generation:} Provide classification results at two levels of granularity—specific aircraft model identification (e.g., F-22, B-52) and broader functional category assignment (e.g., fighter, bomber)—to serve diverse analytical needs.
+    
+    \item \textbf{User-accessible deployment:} Develop a complete web application using Flask and React that enables straightforward image upload, processing, and visualization of detection results including annotated images and fleet composition statistics.
+    
+    \item \textbf{Reproducible evaluation framework:} Perform all experiments using the publicly available MAR20 dataset to establish transparent and reproducible performance baselines for future research.
+\end{enumerate}
+
+\section{Proposed Methodology}\label{sec3}
+
+This section describes the overall pipeline for military aircraft detection and classification from satellite images. The system employs a two-stage cascade architecture: (1)~object detection using YOLOv8n to localize aircraft, and (2)~fine-grained classification using ResNet-50 or ViT-B/16 on cropped regions.
+
+Fig.~\ref{fig:architecture} illustrates the complete system architecture, depicting the data flow from input satellite imagery through the detection and classification stages to the final output. The diagram shows how YOLOv8n first identifies aircraft locations, followed by crop extraction and classification using either ResNet-50 or ViT-B/16, ultimately producing annotated results with fleet composition statistics.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.9\textwidth]{sysarc.png}
+\caption{Overall system architecture for aircraft detection and classification. The pipeline processes satellite images through YOLOv8n detection, extracts aircraft crops, classifies each using ResNet-50/ViT-B/16, and outputs annotated images with fleet composition analysis.}
+\label{fig:architecture}
+\end{figure*}
+
+\subsection{Two-Stage Cascade Architecture Overview}\label{subsec31}
+
+The proposed system operates in two stages:
+
+\textbf{Stage~1 (Detection):} YOLOv8n processes the full satellite image and outputs bounding boxes with confidence scores for detected aircraft.
+
+\textbf{Stage~2 (Classification):} For each detected bounding box, the corresponding region is cropped from the original image, resized to $224 \times 224$ pixels, normalized, and passed through a pretrained ResNet-50 or ViT-B/16 classifier to predict the specific aircraft type.
+
+This decoupled approach allows each stage to be optimized independently and provides flexibility in choosing different classifier architectures without modifying the detection pipeline.
+
+\subsection{Dataset Preparation}\label{subsec32}
+
+The MAR20 dataset is used to train and evaluate the system. It contains satellite images with annotated military aircraft across twenty categories. Table~\ref{tab:categories} presents the complete taxonomy of aircraft types organized by their operational categories. The dataset spans seven functional categories ranging from air superiority fighters to maritime patrol aircraft, reflecting the diversity of military aviation assets encountered in real-world surveillance scenarios. This hierarchical organization enables both fine-grained type identification and broader tactical categorization.
+
+\begin{table}[!t]
+\caption{Aircraft Categories and Types in MAR20 Dataset}
+\label{tab:categories}
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Category} & \textbf{Aircraft Types} \\
+\midrule
+Fighter & F-15, F-16, F-22, FA-18, SU-35 \\
+Bomber & B-1B, B-52, TU-160, TU-22, TU-95 \\
+Transport & C-130, C-17, C-5 \\
+AWACS & E-3, E-8 \\
+Tanker & KC-10, KC-135 \\
+Attack & SU-34, SU-24 \\
+Patrol & P-3C \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All annotations are in YOLO format, where each image has an associated text file containing lines of the form:
+\begin{equation}
+\texttt{class\_id} \quad c_x \quad c_y \quad w \quad h
+\end{equation}
+where $(c_x, c_y)$ is the normalized center coordinate and $(w, h)$ are the normalized width and height of the bounding box.
+
+\subsection{Preprocessing and Data Augmentation}\label{subsec33}
+
+\subsubsection{For Detection (YOLOv8n)}
+Images are resized to $640 \times 640$ pixels. Standard YOLO augmentations including mosaic, mixup, and random perspective transformations are applied during training.
+
+\subsubsection{For Classification}
+Cropped aircraft regions are resized to $224 \times 224$ pixels and normalized using ImageNet~\cite{deng2009imagenet} statistics:
+\begin{equation}
+\mu = [0.485, 0.456, 0.406], \quad \sigma = [0.229, 0.224, 0.225]
+\end{equation}
+
+Training augmentations applied to crops include random horizontal flip, random rotation ($\pm 10^\circ$), and color jitter (brightness$=$0.2, contrast$=$0.2, saturation$=$0.2, hue$=$0.02).
+
+Fig.~\ref{fig:dataset} displays a representative satellite image from the MAR20 dataset, showcasing the typical imaging conditions and aircraft appearance in overhead remote sensing imagery. The image demonstrates the resolution quality, background complexity, and scale of aircraft objects that the detection system must handle. Such examples highlight the challenges posed by varying terrain textures, shadows, and aircraft orientations.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.65\columnwidth]{923_jpg.rf.c925c54a2c2a3b570011095e917f86ca.jpg}
+\caption{Example satellite image from the MAR20 dataset showing military aircraft on an airfield. The image illustrates typical characteristics including overhead viewing angle, complex background textures, and varying aircraft scales.}
+\label{fig:dataset}
+\end{figure}
+
+\subsection{Stage~1: Aircraft Detection Using YOLOv8n}\label{subsec34}
+
+YOLOv8n~\cite{ultralytics2024} is used as the detection backbone. It represents the latest iteration of the YOLO family, offering improved feature extraction through an enhanced CSPDarknet backbone with C3k2 blocks and SPPF (Spatial Pyramid Pooling -- Fast) layers.
+
+Table~\ref{tab:yolo_config} summarizes the key hyperparameters and configuration settings used for training the YOLOv8n detector. The nano variant (YOLOv8n) was selected to balance detection accuracy with computational efficiency, enabling faster inference suitable for real-time applications. COCO~\cite{lin2014coco}-pretrained weights provide a strong initialization, leveraging transfer learning from general object detection to the specialized aircraft domain.
+
+\begin{table}[!t]
+\caption{YOLOv8n Detection Model Configuration}
+\label{tab:yolo_config}
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Architecture & YOLOv8n (Ultralytics) \\
+Pretrained Weights & yolov8n.pt (COCO) \\
+Input Size & $640 \times 640$ pixels \\
+Training Epochs & 30 \\
+Batch Size & 16 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The network outputs bounding boxes $(x_1, y_1, x_2, y_2)$, confidence scores, and class labels for each detected aircraft. Post-processing involves confidence thresholding (0.25), Non-Maximum Suppression (NMS), and coordinate clamping.
+
+Fig.~\ref{fig:yolo} presents sample detection results from the YOLOv8n model, demonstrating its ability to accurately localize multiple aircraft within a single satellite image. The bounding boxes indicate detected aircraft positions with associated confidence scores, illustrating the model's precision in handling densely packed airfield scenarios with overlapping or closely positioned aircraft.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.7\columnwidth]{Screenshot 2025-11-27 221746.png}
+\caption{Sample YOLOv8n detection output showing bounding boxes around detected aircraft. Green rectangles indicate successful detections with confidence scores, demonstrating the model's ability to localize multiple aircraft in complex satellite imagery.}
+\label{fig:yolo}
+\end{figure}
+
+\subsection{Stage~2: Fine-Grained Classification}\label{subsec35}
+
+For each detected aircraft region, a cropped image is extracted and classified using a pretrained CNN or Vision Transformer.
+
+\subsubsection{ResNet-50 Classifier}
+ResNet-50~\cite{he2016resnet} is a 50-layer deep residual network with skip connections. The original 1000-class ImageNet classification head is replaced with:
+\begin{equation}
+\texttt{model.fc} = \text{Linear}(2048, 20)
+\end{equation}
+
+\subsubsection{Vision Transformer ViT-B/16 Classifier}
+ViT-B/16~\cite{dosovitskiy2020vit} divides the input image into $16 \times 16$ patches and processes them through 12 transformer encoder layers. The classification head is modified as:
+\begin{equation}
+\texttt{model.heads.head} = \text{Linear}(768, 20)
+\end{equation}
+
+Table~\ref{tab:clf_config} provides a comprehensive overview of the classification model training configuration. Both ResNet-50 and ViT-B/16 share identical training settings to ensure fair comparison. The AdamW optimizer with weight decay regularization helps prevent overfitting, while the relatively small learning rate of $10^{-4}$ facilitates stable fine-tuning of pretrained weights without catastrophic forgetting.
+
+\begin{table}[!t]
+\caption{Classification Model Configuration}
+\label{tab:clf_config}
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Default Architecture & ResNet-50 \\
+Alternative Architecture & ViT-B/16 \\
+Pretrained Weights & ImageNet-1K \\
+Input Size & $224 \times 224$ pixels \\
+Training Epochs & 20 \\
+Batch Size & 64 \\
+Learning Rate & $1 \times 10^{-4}$ \\
+Optimizer & AdamW \\
+Loss Function & Cross-Entropy \\
+Number of Classes & 20 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{YOLO Crop Dataset}
+A custom dataset class (\texttt{YoloCropDataset}) extracts training crops from YOLO-format annotations. For each annotation line, the corresponding bounding box region is cropped from the source image and associated with its class label.
+
+\subsection{Inference Pipeline}\label{subsec36}
+
+During inference, the complete pipeline operates as follows:
+\begin{enumerate}
+    \item \textbf{Input:} Load satellite image as RGB array
+    \item \textbf{Detection:} Run YOLOv8n with confidence threshold 0.25
+    \item \textbf{For each detection:}
+    \begin{itemize}
+        \item Extract bounding box coordinates
+        \item Crop region and resize to $224 \times 224$
+        \item Forward pass through classifier
+        \item Apply softmax for class probabilities
+    \end{itemize}
+    \item \textbf{Output:} Annotated image with bounding boxes, labels, and fleet composition statistics
+\end{enumerate}
+
+\subsection{Fleet Composition Analysis}\label{subsec37}
+
+The system provides fleet composition analysis by aggregating detection results:
+\begin{itemize}
+    \item \textbf{By Type:} Count and percentage of each aircraft model
+    \item \textbf{By Category:} Count and percentage of each operational category
+\end{itemize}
+
+\section{Implementation Details}\label{sec4}
+
+The system is implemented using Python for model development and JavaScript for the web interface. PyTorch and Ultralytics are used for deep learning.
+
+\subsection{Technology Stack}\label{subsec41}
+
+Table~\ref{tab:techstack} enumerates the complete technology stack employed in system development. The selection prioritizes widely-adopted, well-documented frameworks to ensure maintainability and reproducibility. Python serves as the primary language for machine learning components, while JavaScript powers the interactive web frontend. GPU acceleration via CUDA enables efficient training and real-time inference on large satellite images.
+
+\begin{table}[!t]
+\caption{Technology Stack}
+\label{tab:techstack}
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{0.35\columnwidth}p{0.55\columnwidth}@{}}
+\toprule
+\textbf{Component} & \textbf{Tools/Libraries} \\
+\midrule
+Programming & Python 3.11, JavaScript \\
+Backend & Flask with Flask-CORS \\
+Frontend & ReactJS \\
+Deep Learning & PyTorch 2.x, Ultralytics \\
+Image Processing & OpenCV, Pillow, NumPy \\
+Dataset & MAR20 (20 classes, 22K+ instances) \\
+Hardware & NVIDIA GPU (CUDA) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Model Training}\label{subsec42}
+
+The YOLOv8n model is fine-tuned on the MAR20 training split starting from COCO-pretrained weights. The classification training loop implements standard supervised learning with AdamW optimizer and cross-entropy loss. Early stopping is achieved by saving only the checkpoint with highest validation accuracy.
+
+Fig.~\ref{fig:training} visualizes the training dynamics of the ResNet-50 classifier over 20 epochs. The curves demonstrate steady convergence with training loss decreasing monotonically while validation accuracy improves progressively. The minimal gap between training and validation metrics indicates effective regularization and absence of severe overfitting, validating the chosen hyperparameter configuration.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.75\columnwidth]{Screenshot 2025-11-28 001814.png}
+\caption{Training loss and accuracy curves for the ResNet-50 classifier. The plots show consistent convergence over 20 epochs, with training loss decreasing steadily and validation accuracy reaching approximately 91\%, indicating successful model optimization without overfitting.}
+\label{fig:training}
+\end{figure}
+
+\subsection{Web Interface}\label{subsec43}
+
+A Flask-based backend exposes a REST API for image upload and inference. When a user uploads an image via the ReactJS frontend, the backend runs detection, extracts crops, applies the classifier, and returns an annotated image with fleet composition data.
+
+Fig.~\ref{fig:webui} showcases the web-based user interface designed for operational deployment. The interface features an intuitive drag-and-drop upload mechanism, real-time processing status indicators, and comprehensive result visualization including annotated images, detection counts, and fleet composition breakdowns. This user-friendly design enables non-technical personnel to leverage the system without requiring machine learning expertise.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.8\columnwidth]{Screenshot 2025-11-27 234455.png}
+\caption{Web-based user interface showing the detection results panel. The interface displays the uploaded satellite image with overlaid bounding boxes, aircraft type labels, confidence scores, and a summary panel showing total counts and fleet composition by category.}
+\label{fig:webui}
+\end{figure}
+
+\section{Results and Discussion}\label{sec5}
+
+The system is evaluated on the MAR20 test split to assess detection and classification performance.
+
+\subsection{Detection Performance}\label{subsec51}
+
+The YOLOv8n model successfully detects aircraft in complex satellite scenes. Table~\ref{tab:det_perf} presents quantitative evaluation metrics for the detection stage. The mAP@0.5 of 92.3\% indicates excellent localization accuracy at standard IoU threshold, while mAP@0.5:0.95 of 78.6\% demonstrates robust performance across stricter matching criteria. GPU inference times below 0.5 seconds per image confirm suitability for near real-time applications.
+
+\begin{table}[!t]
+\caption{YOLOv8n Detection Performance}
+\label{tab:det_perf}
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+mAP@0.5 & 92.3\% \\
+mAP@0.5:0.95 & 78.6\% \\
+Average Detection Confidence & 90--94\% \\
+Inference Time (GPU) & $\sim$0.5s/image \\
+Inference Time (CPU) & $\sim$1.2s/image \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Classification Performance}\label{subsec52}
+
+Table~\ref{tab:clf_perf} compares the two classifier architectures across validation and test splits. ViT-B/16 marginally outperforms ResNet-50 on both metrics, achieving 90.5\% test accuracy compared to 89.7\%. This improvement likely stems from the transformer's global attention mechanism, which captures long-range spatial dependencies useful for distinguishing aircraft with similar local textures but different overall shapes.
+
+\begin{table}[!t]
+\caption{Classifier Performance Comparison}
+\label{tab:clf_perf}
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Model} & \textbf{Val Acc.} & \textbf{Test Acc.} \\
+\midrule
+ResNet-50 & 91.4\% & 89.7\% \\
+ViT-B/16 & 92.3\% & 90.5\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Example Results}\label{subsec53}
+
+Table~\ref{tab:results} presents representative detection and classification outputs for various aircraft types. The examples span multiple categories including bombers, fighters, and transport aircraft, demonstrating consistent performance across the taxonomy. Detection confidence remains high (94--100\%) across all examples, while classification confidence varies by aircraft type, with larger distinctive aircraft like TU-160 achieving higher scores than visually similar fighters.
+
+\begin{table}[!t]
+\caption{Example Detection and Classification Results}
+\label{tab:results}
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}llcc@{}}
+\toprule
+\textbf{Label} & \textbf{Category} & \textbf{Det.} & \textbf{Clf.} \\
+\midrule
+TU-160 & Bomber & 100\% & 85.4\% \\
+F-22 & Fighter & 97.2\% & 88.1\% \\
+C-130 & Transport & 95.8\% & 82.3\% \\
+B-52 & Bomber & 98.4\% & 86.7\% \\
+SU-35 & Fighter & 94.1\% & 79.5\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Fig.~\ref{fig:output} displays a complete system output with annotated satellite imagery. Each detected aircraft is marked with a bounding box, class label, and confidence score. The accompanying summary provides total aircraft count, per-type breakdown, and category-level aggregation, enabling rapid assessment of airfield composition for intelligence analysis.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.75\columnwidth]{Screenshot 2025-11-27 230040.png}
+\caption{Complete system output showing annotated satellite image with detected aircraft. Each bounding box displays the predicted aircraft type and confidence score. The results panel summarizes total detections and provides fleet composition breakdown by type and operational category.}
+\label{fig:output}
+\end{figure}
+
+\subsection{Discussion}\label{subsec54}
+
+The two-stage cascade approach offers several advantages:
+\begin{itemize}
+    \item \textbf{Modularity:} Detection and classification models can be trained independently.
+    \item \textbf{Flexibility:} Different classifier architectures can be swapped without modifying the detection pipeline.
+    \item \textbf{Fine-grained recognition:} The classifier learns subtle differences between similar aircraft.
+    \item \textbf{Hierarchical output:} Both specific types and operational categories are provided.
+\end{itemize}
+
+The ViT-B/16 classifier shows slightly better performance than ResNet-50, likely due to its ability to capture global context through self-attention mechanisms.
+
+\section{Conclusion}\label{sec6}
+
+This paper presented an automated two-stage cascade system for detecting, classifying, and counting military aircraft from satellite images. The integration of YOLOv8n for detection and ResNet-50/ViT-B/16 classifiers enables accurate analysis of aerial scenes across 20 aircraft categories. Experimental results demonstrate 92.3\% mAP for detection and 90.5\% classification accuracy.
+
+\section{Future Work}\label{sec7}
+
+Several directions remain for extending the proposed system:
+
+\begin{enumerate}
+    \item \textbf{Instance segmentation:} Incorporate Mask R-CNN or SAM for precise aircraft contour extraction.
+    
+    \item \textbf{Temporal tracking:} Implement DeepSORT or ByteTrack for monitoring aircraft movement across satellite passes.
+    
+    \item \textbf{Hybrid architectures:} Explore unified CNN-Transformer models combining both paradigms.
+    
+    \item \textbf{Dataset expansion:} Extend training to additional datasets and civilian aircraft.
+    
+    \item \textbf{Cloud deployment:} Migrate to AWS/GCP with auto-scaling for batch processing.
+    
+    \item \textbf{Oriented bounding boxes:} Replace horizontal with OBB for rotated aircraft.
+\end{enumerate}
+
+\begin{thebibliography}{00}
+\bibitem{yu2023mar20}
+Yu, X., Zhao, Y., Zhang, Z., Wu, Y.: MAR20: A large-scale dataset for military aircraft recognition in remote sensing imagery. IEEE Trans. Geosci. Remote Sens. (2023)
+
+\bibitem{cheng2016rotation}
+Cheng, G., Zhou, P., Han, J.: Learning rotation-invariant convolutional neural networks for object detection in aerial images. IEEE Trans. Geosci. Remote Sens. \textbf{54}(12), 7405--7415 (2016)
+
+\bibitem{ji2019multiangle}
+Ji, X., Zhang, H., Zhao, T.: Multi-angle aircraft detection in high-resolution imagery using deep convolutional networks. Remote Sens. Lett. \textbf{10}(3), 245--253 (2019)
+
+\bibitem{wang2022lightweight}
+Wang, H., Li, Y., Chen, Q.: Lightweight YOLO-based aircraft detection for real-time processing. Remote Sensing \textbf{14}(9), 1952--1963 (2022)
+
+\bibitem{wu2020cgcnet}
+Wu, Z., Liu, M., Wang, Q.: CGC-NET: A center-guided cascade network for aircraft detection in remote sensing images. IEEE Access \textbf{8}, 197215--197227 (2020)
+
+\bibitem{hu2021glfnet}
+Hu, W., Gao, F., Huang, L.: GLF-Net: Global and local feature fusion network for aircraft recognition. ISPRS J. Photogramm. Remote Sens. \textbf{180}, 283--294 (2021)
+
+\bibitem{yolov4}
+Bochkovskiy, A., Wang, C.Y., Liao, H.M.: YOLOv4: Optimal speed and accuracy of object detection. arXiv preprint arXiv:2004.10934 (2020)
+
+\bibitem{dosovitskiy2020vit}
+Dosovitskiy, A., et al.: An image is worth 16x16 words: Transformers for image recognition at scale. arXiv preprint arXiv:2010.11929 (2020)
+
+\bibitem{he2016resnet}
+He, K., Zhang, X., Ren, S., Sun, J.: Deep residual learning for image recognition. In: Proc. IEEE CVPR, pp. 770--778 (2016)
+
+\bibitem{ultralytics2024}
+Ultralytics: YOLOv8: State-of-the-art object detection (2024). \url{https://github.com/ultralytics/ultralytics}
+
+\bibitem{zhu2021tph}
+Zhu, X., Lyu, S., Wang, X., Zhao, Q.: TPH-YOLOv5: Improved YOLOv5 based on transformer prediction head for object detection on drone-captured scenarios. In: Proc. IEEE/CVF ICCV Workshops, pp. 2778--2788 (2021)
+
+\bibitem{li2022attention}
+Li, C., Li, L., Jiang, H., Weng, K.: YOLOv6: A single-stage object detection framework for industrial applications. arXiv preprint arXiv:2209.02976 (2022)
+
+\bibitem{shorten2019survey}
+Shorten, C., Khoshgoftaar, T.M.: A survey on image data augmentation for deep learning. J. Big Data \textbf{6}(1), 1--48 (2019)
+
+\bibitem{liu2021swin}
+Liu, Z., Lin, Y., Cao, Y., Hu, H., Wei, Y., Zhang, Z., Lin, S., Guo, B.: Swin Transformer: Hierarchical vision transformer using shifted windows. In: Proc. IEEE/CVF ICCV, pp. 10012--10022 (2021)
+
+\bibitem{lv2023rtdetr}
+Lv, W., Xu, S., Zhao, Y., Wang, G., Wei, J., Cui, C., Du, Y., Dang, Q., Liu, Y.: DETRs beat YOLOs on real-time object detection. In: Proc. IEEE/CVF CVPR, pp. 16965--16974 (2023)
+
+\bibitem{liu2016ssd}
+Liu, W., Anguelov, D., Erhan, D., Szegedy, C., Reed, S., Fu, C.Y., Berg, A.C.: SSD: Single shot multibox detector. In: Proc. ECCV, pp. 21--37 (2016)
+
+\bibitem{ren2015faster}
+Ren, S., He, K., Girshick, R., Sun, J.: Faster R-CNN: Towards real-time object detection with region proposal networks. In: Proc. NeurIPS, pp. 91--99 (2015)
+
+\bibitem{lin2017focal}
+Lin, T.Y., Goyal, P., Girshick, R., He, K., Doll{\'a}r, P.: Focal loss for dense object detection. In: Proc. IEEE ICCV, pp. 2980--2988 (2017)
+
+\bibitem{deng2009imagenet}
+Deng, J., Dong, W., Socher, R., Li, L.J., Li, K., Fei-Fei, L.: ImageNet: A large-scale hierarchical image database. In: Proc. IEEE CVPR, pp. 248--255 (2009)
+
+\bibitem{lin2014coco}
+Lin, T.Y., Maire, M., Belongie, S., Hays, J., Perona, P., Ramanan, D., Doll{\'a}r, P., Zitnick, C.L.: Microsoft COCO: Common objects in context. In: Proc. ECCV, pp. 740--755 (2014)
+
+\end{thebibliography}
+
+\end{document}
